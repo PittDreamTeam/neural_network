@@ -1,6 +1,8 @@
 import random
 import numpy as np
 
+epsilon = 0.1
+
 class Network(object):
 
     def __init__(self, sizes):
@@ -8,11 +10,16 @@ class Network(object):
         takes the sizes of each layer of the neural network and makes the random weights and biases"""
         self.num_layers = len(sizes)
         self.sizes = sizes
-        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
-        self.weights = [np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
+        self.reset()
+
+    def reset(self):
+        self.biases = [np.random.randn(y, 1) for y in self.sizes[1:]]
+        self.weights = [np.random.randn(y, x) for x, y in zip(self.sizes[:-1], self.sizes[1:])]
 
     def feedforward(self, a):
         """Function to ``run`` the network with an input vector of a"""
+        if len(a.shape) == 1:
+            a = reguralize_input(a)
         for b, w in zip(self.biases, self.weights):
             a = sigmoid(np.dot(w, a)+b)
         return a
@@ -21,20 +28,30 @@ class Network(object):
         """Training function:
         ``training_data`` is a list of tuples ``(input, desired_output)``
         where input and desired_output are numpy arrays. test_data follows the same format"""
+        if len(training_data[0][0].shape) == 1:
+            training_data = list(map(
+                lambda x: (reguralize_input(x[0]), reguralize_input(x[1])),
+                training_data
+            ))
+        if test_data and len(test_data[0][0].shape) == 1:
+            test_data = list(map(
+                lambda x: (reguralize_input(x[0]), reguralize_input(x[1])),
+                test_data
+            ))
         if test_data: n_test = len(test_data)
         n = len(training_data)
-        for j in xrange(epochs):
+        for j in range(epochs):
             random.shuffle(training_data)
             mini_batches = [
                 training_data[k:k+mini_batch_size]
-                for k in xrange(0, n, mini_batch_size)]
+                for k in range(0, n, mini_batch_size)]
             for mini_batch in mini_batches:
                 self.update_mini_batch(mini_batch, eta)
             if test_data:
-                print "Epoch {0}: {1} / {2}".format(
-                    j, self.evaluate(test_data), n_test)
+                print("Epoch {0}: {1} / {2}".format(
+                    j, self.evaluate(test_data), n_test))
             else:
-                print "Epoch {0} complete".format(j)
+                print("Epoch {0} complete".format(j))
 
     def update_mini_batch(self, mini_batch, eta):
         """Train on a small subset of data to increase training speed"""
@@ -61,7 +78,7 @@ class Network(object):
         activations = [x] # list to store all the activations, layer by layer
         zs = [] # list to store all the z vectors, layer by layer
         for b, w in zip(self.biases, self.weights):
-            z = np.dot(w, activation)+b
+            z = np.dot(w, activation)+b # output should be a vector
             zs.append(z)
             activation = sigmoid(z)
             activations.append(activation)
@@ -76,7 +93,7 @@ class Network(object):
         # second-last layer, and so on.  It's a renumbering of the
         # scheme in the book, used here to take advantage of the fact
         # that Python can use negative indices in lists.
-        for l in xrange(2, self.num_layers):
+        for l in range(2, self.num_layers):
             z = zs[-l]
             sp = sigmoid_prime(z)
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
@@ -91,13 +108,16 @@ class Network(object):
 
     def evaluate(self, test_data):
         """Calculate how many test data points are correct"""
-        test_results = [(np.argmax(self.feedforward(x)), y)
+        test_results = [(self.feedforward(x), y)
                         for (x, y) in test_data]
-        return sum(int(x == y) for (x, y) in test_results)
+        print(sum(abs(x - y) for x, y in test_results))
+        return sum(int(abs(x - y) < epsilon) for (x, y) in test_results)
 
 
 
-
+def reguralize_input(v):
+    # input v is a vector
+    return np.array([v.tolist()]).T
 
 def sigmoid(z):
     """The sigmoid function."""
