@@ -2,6 +2,7 @@
     largely lifted from https://neuralnetworksanddeeplearning.com/"""
 
 import random
+import cleansing
 import numpy as np
 
 EPSILON = 0.1
@@ -122,7 +123,7 @@ class Network(object):
 
 def column(lst):
     """Transforms a standard Python list into a numpy column vector."""
-    return np.array([lst]).T
+    return cleansing.matrix_from(lst)
 
 def uncolumn(vec):
     """Transforms a numpy column vector to standard Python list."""
