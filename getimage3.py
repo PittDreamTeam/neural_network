@@ -142,13 +142,12 @@ class Camera:
         return Image.open(io.BytesIO(photodata))
 
 def main():
-    import time
     cam = Camera(low_res=True)
-    start = time.time()
-    pic = cam.take_photo()
-    print(pic.size)
-    needed = time.time() - start
-    print("{} sec".format(needed))
+    for i in range(10):
+        cam.reset()
+        pic = cam.take_photo()
+        pic.show()
+        pic.save('data/image{}.jpg'.format(i))
 
 if __name__ == '__main__':
     main()
