@@ -120,7 +120,13 @@ class Network(object):
         print(sum(abs(x - y) for x, y in test_results))
         return sum(int(abs(x - y) < EPSILON) for (x, y) in test_results)
 
+def column(lst):
+    """Transforms a standard Python list into a numpy column vector."""
+    return np.array([lst]).T
 
+def uncolumn(vec):
+    """Transforms a numpy column vector to standard Python list."""
+    return vec.T.tolist()[0]
 
 def reguralize_input(vec):
     """Input a simple numpy vector, and outputs a column vector."""
