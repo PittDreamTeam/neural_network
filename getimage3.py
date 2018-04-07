@@ -3,6 +3,8 @@
 # written by ladyada. MIT license
 
 import serial
+import io
+from PIL import Image
 
 BAUD = 38400
 PORT = "COM3"      # change this to your com port!
@@ -28,66 +30,6 @@ getversioncommand = [COMMANDSEND, SERIALNUM, CMD_GETVERSION, COMMANDEND]
 resetcommand = [COMMANDSEND, SERIALNUM, CMD_RESET, COMMANDEND]
 takephotocommand = [COMMANDSEND, SERIALNUM, CMD_TAKEPHOTO, 0x01, FBUF_STOPCURRENTFRAME]
 getbufflencommand = [COMMANDSEND, SERIALNUM, CMD_GETBUFFLEN, 0x01, FBUF_CURRENTFRAME]
-
-s = serial.Serial(PORT, baudrate=BAUD, timeout=TIMEOUT)
-
-def checkreply(r, b):
-    r = list(map (lambda x: ord(x) if type(x) != int else x, r))
-    if (r[0] == 0x76 and r[1] == SERIALNUM and r[2] == b and r[3] == 0x00):
-        return True
-    return False
-
-def reset():
-    cmd = ''.join (map (chr, resetcommand))
-    s.write(cmd.encode())
-    # print("reset", resetcommand)
-    reply = s.read(100)
-    r = list(reply)
-    if checkreply(r, CMD_RESET):
-        return True
-    return False
-        
-def getversion():
-    cmd = ''.join (map (chr, getversioncommand))
-    s.write(cmd.encode())
-    # print("getversion", getversioncommand)
-    reply =  s.read(16)
-    r = list(reply)
-    if checkreply(r, CMD_GETVERSION):
-        print("getversion reply: {}".format(r))
-        return True
-    return False
-
-def takephoto():
-    cmd = ''.join (map (chr, takephotocommand))
-    s.write(cmd.encode())
-    reply = s.read(5)
-    r = list(reply)
-    # print("Takephoto reply: {}".format(r))
-    cr = checkreply(r, CMD_TAKEPHOTO)
-    r3ez = r[3] == 0x0
-    if cr and r3ez:
-        return True
-    return False
-
-def getbufferlength():
-    cmd = ''.join (map (chr, getbufflencommand))
-    s.write(cmd.encode())
-    # print("getbufferlength", getbufflencommand)
-    reply = s.read(9)
-    r = list(reply)
-    print("Getbufferlen reply: {}".format(r))
-    if (checkreply(r, CMD_GETBUFFLEN) and r[4] == 0x4):
-        l = r[5]
-        l <<= 8
-        l += r[6]
-        l <<= 8
-        l += r[7]
-        l <<= 8
-        l += r[8]
-        return l
-    return 0
-
 readphotocommand = [COMMANDSEND, SERIALNUM, CMD_READBUFF, 0x0c, FBUF_CURRENTFRAME, 0x0a]
 
 def join_bytes(arr):
@@ -99,49 +41,105 @@ def join_bytes(arr):
 def map_bytes(arr):
     return list(map(lambda x: x.to_bytes(1, 'big'), arr))
 
-def readbuffer(num_bytes):
-    addr = 0
-    photo = []
-    
-    while (addr < num_bytes + 32):
-        command = readphotocommand + [(addr >> 24) & 0xFF, (addr >> 16) & 0xFF,
-                                      (addr >> 8) & 0xFF, addr & 0xFF]
-        command +=  [0, 0, 0, 32]   # 32 bytes at a time
-        command +=  [0, 0xff]       # delay of 10ms
-        s.write(join_bytes(map_bytes(command)))
-        # print("readcommand", command)
-        reply = s.read(32+5+5)
+class Camera:
+    def __init__(self):
+        self.handle = serial.Serial(PORT, baudrate=BAUD, timeout=TIMEOUT)
+        self.reset()
+        if not self.getversion():
+            raise Exception("Could not find camera")
+        
+
+    def checkreply(self, r, b):
+        r = list(map (lambda x: ord(x) if type(x) != int else x, r))
+        if (r[0] == 0x76 and r[1] == SERIALNUM and r[2] == b and r[3] == 0x00):
+            return True
+        return False
+
+    def reset(self):
+        cmd = ''.join (map (chr, resetcommand))
+        self.handle.write(cmd.encode())
+        # print("reset", resetcommand)
+        reply = self.handle.read(100)
         r = list(reply)
-        if (len(r) != 37+5):
-            print("Reply was wrong len: {}".format(len(r)))
-            continue
-        print("Readbuffer reply: {}".format(r))
-        if (not checkreply(r, CMD_READBUFF)):
-            print("ERROR READING PHOTO")
-            exit()
-        photo += r[5:-5]
-        addr += 32
-    return photo
+        if self.checkreply(r, CMD_RESET):
+            return True
+        return False
+            
+    def getversion(self):
+        cmd = ''.join (map (chr, getversioncommand))
+        self.handle.write(cmd.encode())
+        # print("getversion", getversioncommand)
+        reply =  self.handle.read(16)
+        r = list(reply)
+        if self.checkreply(r, CMD_GETVERSION):
+            print("getversion reply: {}".format(r))
+            return True
+        return False
 
+    def takephoto(self):
+        cmd = ''.join (map (chr, takephotocommand))
+        self.handle.write(cmd.encode())
+        reply = self.handle.read(5)
+        r = list(reply)
+        # print("Takephoto reply: {}".format(r))
+        cr = self.checkreply(r, CMD_TAKEPHOTO)
+        r3ez = r[3] == 0x0
+        if cr and r3ez:
+            return True
+        return False
 
-def main():
-    reset()
+    def getbufferlength(self):
+        cmd = ''.join (map (chr, getbufflencommand))
+        self.handle.write(cmd.encode())
+        # print("getbufferlength", getbufflencommand)
+        reply = self.handle.read(9)
+        r = list(reply)
+        print("Getbufferlen reply: {}".format(r))
+        if (self.checkreply(r, CMD_GETBUFFLEN) and r[4] == 0x4):
+            l = r[5]
+            l <<= 8
+            l += r[6]
+            l <<= 8
+            l += r[7]
+            l <<= 8
+            l += r[8]
+            return l
+        return 0
 
-    if not getversion():
-        print("Camera not found")
-        exit()
-    print("VC0706 Camera found")
+    def readbuffer(self, num_bytes):
+        addr = 0
+        photo = []
+        
+        while (addr < num_bytes + 32):
+            command = readphotocommand + [(addr >> 24) & 0xFF, (addr >> 16) & 0xFF,
+                                        (addr >> 8) & 0xFF, addr & 0xFF]
+            command +=  [0, 0, 0, 32]   # 32 bytes at a time
+            command +=  [0, 0xff]       # delay of 10ms
+            self.handle.write(join_bytes(map_bytes(command)))
+            # print("readcommand", command)
+            reply = self.handle.read(32+5+5)
+            r = list(reply)
+            if (len(r) != 37+5):
+                print("Reply was wrong len: {}".format(len(r)))
+                continue
+            print("Readbuffer reply: {}".format(r))
+            if (not self.checkreply(r, CMD_READBUFF)):
+                print("ERROR READING PHOTO")
+                exit()
+            photo += r[5:-5]
+            addr += 32
+        return photo
 
-    if takephoto():
-        print("Snap!")
+    def take_photo(self):
+        if not self.takephoto():
+            raise Exception("Unable to take photo!")
 
-    num_bytes = getbufferlength()
-    print(num_bytes, "bytes to read")
-    photo = readbuffer(num_bytes)
-    photodata = join_bytes(map_bytes(photo))
-    print(type(photodata))
-    with open('photo.jpg', 'wb') as f:
-        f.write(photodata)
+        num_bytes = self.getbufferlength()
+        print(num_bytes, "bytes to read")
+        photo = self.readbuffer(num_bytes)
+        photodata = join_bytes(map_bytes(photo))
+        return Image.open(io.BytesIO(photodata))
 
 if __name__ == '__main__':
-    main()
+    cam = Camera()
+    cam.take_photo().show()

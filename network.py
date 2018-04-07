@@ -100,12 +100,12 @@ class Network(object):
         # second-last layer, and so on.  It's a renumbering of the
         # scheme in the book, used here to take advantage of the fact
         # that Python can use negative indices in lists.
-        for l in range(2, self.num_layers):
-            z = zs[-l]
+        for layer in range(2, self.num_layers):
+            z = zs[-layer]
             sp = sigmoid_prime(z)
-            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
-            nabla_b[-l] = delta
-            nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
+            delta = np.dot(self.weights[-layer+1].transpose(), delta) * sp
+            nabla_b[-layer] = delta
+            nabla_w[-layer] = np.dot(delta, activations[-layer-1].transpose())
         return (nabla_b, nabla_w)
 
     def cost_derivative(self, output_activations, expected):
