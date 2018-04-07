@@ -20,6 +20,7 @@ CMD_RESET = 0x26
 CMD_TAKEPHOTO = 0x36
 CMD_READBUFF = 0x32
 CMD_GETBUFFLEN = 0x34
+CMD_SETRESOLUTION = 0x31
 
 FBUF_CURRENTFRAME = 0x00
 FBUF_NEXTFRAME = 0x01
@@ -30,6 +31,7 @@ resetcommand = [COMMANDSEND, SERIALNUM, CMD_RESET, COMMANDEND]
 takephotocommand = [COMMANDSEND, SERIALNUM, CMD_TAKEPHOTO, 0x01, FBUF_STOPCURRENTFRAME]
 getbufflencommand = [COMMANDSEND, SERIALNUM, CMD_GETBUFFLEN, 0x01, FBUF_CURRENTFRAME]
 readphotocommand = [COMMANDSEND, SERIALNUM, CMD_READBUFF, 0x0c, FBUF_CURRENTFRAME, 0x0a]
+setlowrescommand = [COMMANDSEND, SERIALNUM, CMD_SETRESOLUTION, 0x05, 0x04, 0x01, 0, 0x19, 0x22]
 
 def join_bytes(arr):
     res = b''
@@ -41,12 +43,22 @@ def map_bytes(arr):
     return list(map(lambda x: x.to_bytes(1, 'big'), arr))
 
 class Camera:
-    def __init__(self, port='COM3'):
+    def __init__(self, port='COM3', low_res=True):
         self.handle = serial.Serial(port, baudrate=BAUD, timeout=TIMEOUT)
         self.reset()
         if not self.getversion():
             raise Exception("Could not find camera")
-        
+        if low_res:
+            if not self.setreslow():
+                raise Exception("Could not set resolution low")
+            self.reset()
+
+    def setreslow(self):
+        cmd = ''.join(map(chr, setlowrescommand))
+        assert len(cmd) == len(setlowrescommand)
+        self.handle.write(cmd.encode())
+        reply = list(self.handle.read(5))
+        return self.checkreply(reply, CMD_SETRESOLUTION)
 
     def checkreply(self, r, b):
         r = list(map (lambda x: ord(x) if type(x) != int else x, r))
@@ -57,7 +69,6 @@ class Camera:
     def reset(self):
         cmd = ''.join (map (chr, resetcommand))
         self.handle.write(cmd.encode())
-        # print("reset", resetcommand)
         reply = self.handle.read(100)
         r = list(reply)
         if self.checkreply(r, CMD_RESET):
@@ -67,11 +78,9 @@ class Camera:
     def getversion(self):
         cmd = ''.join (map (chr, getversioncommand))
         self.handle.write(cmd.encode())
-        # print("getversion", getversioncommand)
         reply =  self.handle.read(16)
         r = list(reply)
         if self.checkreply(r, CMD_GETVERSION):
-            # print("getversion reply: {}".format(r))
             return True
         return False
 
@@ -80,7 +89,6 @@ class Camera:
         self.handle.write(cmd.encode())
         reply = self.handle.read(5)
         r = list(reply)
-        # print("Takephoto reply: {}".format(r))
         cr = self.checkreply(r, CMD_TAKEPHOTO)
         r3ez = r[3] == 0x0
         if cr and r3ez:
@@ -90,10 +98,8 @@ class Camera:
     def getbufferlength(self):
         cmd = ''.join (map (chr, getbufflencommand))
         self.handle.write(cmd.encode())
-        # print("getbufferlength", getbufflencommand)
         reply = self.handle.read(9)
         r = list(reply)
-        # print("Getbufferlen reply: {}".format(r))
         if (self.checkreply(r, CMD_GETBUFFLEN) and r[4] == 0x4):
             l = r[5]
             l <<= 8
@@ -115,12 +121,10 @@ class Camera:
             command +=  [0, 0, 0, 32]   # 32 bytes at a time
             command +=  [0, 0xff]       # delay of 10ms
             self.handle.write(join_bytes(map_bytes(command)))
-            # print("readcommand", command)
             reply = self.handle.read(32+5+5)
             r = list(reply)
             if (len(r) != 37+5):
                 raise Exception("Incorrect packet size {}".format(len(r)))
-            # print("Readbuffer reply: {}".format(r))
             if (not self.checkreply(r, CMD_READBUFF)):
                 raise Exception("Invalid packet from camera")
             photo += r[5:-5]
@@ -132,11 +136,19 @@ class Camera:
             raise Exception("Unable to take photo!")
 
         num_bytes = self.getbufferlength()
-        print(num_bytes, "bytes to read")
+        print("number of bytes", num_bytes)
         photo = self.readbuffer(num_bytes)
         photodata = join_bytes(map_bytes(photo))
         return Image.open(io.BytesIO(photodata))
 
+def main():
+    import time
+    cam = Camera(low_res=True)
+    start = time.time()
+    pic = cam.take_photo()
+    print(pic.size)
+    needed = time.time() - start
+    print("{} sec".format(needed))
+
 if __name__ == '__main__':
-    cam = Camera()
-    cam.take_photo().show()
+    main()
