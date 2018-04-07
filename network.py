@@ -1,40 +1,64 @@
+"""A Simple Neural Network implementation,
+    largely lifted from https://neuralnetworksanddeeplearning.com/"""
+
 import random
 import numpy as np
 
+EPSILON = 0.1
+
 class Network(object):
+    """Implementation of a simple neural net."""
 
     def __init__(self, sizes):
         """Constructor:
-        takes the sizes of each layer of the neural network and makes the random weights and biases"""
+        takes the sizes of each layer of the neural network
+        and makes the random weights and biases"""
         self.num_layers = len(sizes)
         self.sizes = sizes
-        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
-        self.weights = [np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
+        self.reset()
 
-    def feedforward(self, a):
+    def reset(self):
+        """Resets weights and biases to random values."""
+        self.biases = [np.random.randn(y, 1) for y in self.sizes[1:]]
+        self.weights = [np.random.randn(y, x) for x, y in zip(self.sizes[:-1], self.sizes[1:])]
+
+    def feedforward(self, example):
         """Function to ``run`` the network with an input vector of a"""
+        if len(example.shape) == 1:
+            example = reguralize_input(example)
         for b, w in zip(self.biases, self.weights):
-            a = sigmoid(np.dot(w, a)+b)
-        return a
+            example = sigmoid(np.dot(w, example)+b)
+        return example
 
     def SGD(self, training_data, epochs, mini_batch_size, eta, test_data=None):
         """Training function:
         ``training_data`` is a list of tuples ``(input, desired_output)``
         where input and desired_output are numpy arrays. test_data follows the same format"""
-        if test_data: n_test = len(test_data)
+        if len(training_data[0][0].shape) == 1:
+            training_data = list(map(
+                lambda x: (reguralize_input(x[0]), reguralize_input(x[1])),
+                training_data
+            ))
+        if test_data and len(test_data[0][0].shape) == 1:
+            test_data = list(map(
+                lambda x: (reguralize_input(x[0]), reguralize_input(x[1])),
+                test_data
+            ))
+        if test_data:
+            n_test = len(test_data)
         n = len(training_data)
-        for j in xrange(epochs):
+        for j in range(epochs):
             random.shuffle(training_data)
             mini_batches = [
                 training_data[k:k+mini_batch_size]
-                for k in xrange(0, n, mini_batch_size)]
+                for k in range(0, n, mini_batch_size)]
             for mini_batch in mini_batches:
                 self.update_mini_batch(mini_batch, eta)
             if test_data:
-                print "Epoch {0}: {1} / {2}".format(
-                    j, self.evaluate(test_data), n_test)
+                print("Epoch {0}: {1} / {2}".format(
+                    j, self.evaluate(test_data), n_test))
             else:
-                print "Epoch {0} complete".format(j)
+                print("Epoch {0} complete".format(j))
 
     def update_mini_batch(self, mini_batch, eta):
         """Train on a small subset of data to increase training speed"""
@@ -49,24 +73,24 @@ class Network(object):
         self.biases = [b-(eta/len(mini_batch))*nb
                        for b, nb in zip(self.biases, nabla_b)]
 
-    def backprop(self, x, y):
+    def backprop(self, example, expectation):
         """Return a tuple ``(nabla_b, nabla_w)`` representing the
-        gradient for the cost function C_x.  ``nabla_b`` and
+        gradient for the cost function C_example.  ``nabla_b`` and
         ``nabla_w`` are layer-by-layer lists of numpy arrays, similar
         to ``self.biases`` and ``self.weights``."""
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
         # feedforward
-        activation = x
-        activations = [x] # list to store all the activations, layer by layer
+        activation = example
+        activations = [example] # list to store all the activations, layer by layer
         zs = [] # list to store all the z vectors, layer by layer
         for b, w in zip(self.biases, self.weights):
-            z = np.dot(w, activation)+b
+            z = np.dot(w, activation) + b # output should be a vector
             zs.append(z)
             activation = sigmoid(z)
             activations.append(activation)
         # backward pass
-        delta = self.cost_derivative(activations[-1], y) * \
+        delta = self.cost_derivative(activations[-1], expectation) * \
             sigmoid_prime(zs[-1])
         nabla_b[-1] = delta
         nabla_w[-1] = np.dot(delta, activations[-2].transpose())
@@ -76,28 +100,38 @@ class Network(object):
         # second-last layer, and so on.  It's a renumbering of the
         # scheme in the book, used here to take advantage of the fact
         # that Python can use negative indices in lists.
-        for l in xrange(2, self.num_layers):
+        for l in range(2, self.num_layers):
             z = zs[-l]
             sp = sigmoid_prime(z)
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
             nabla_b[-l] = delta
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
         return (nabla_b, nabla_w)
-        
-    def cost_derivative(self, output_activations, y):
-        """Return the vector of partial derivatives \partial C_x /
-        \partial a for the output activations."""
-        return (output_activations-y)
+
+    def cost_derivative(self, output_activations, expected):
+        """Return the vector of partial derivatives partial C_x /
+        partial a for the output activations."""
+        return output_activations - expected
 
     def evaluate(self, test_data):
         """Calculate how many test data points are correct"""
-        test_results = [(np.argmax(self.feedforward(x)), y)
+        test_results = [(self.feedforward(x), y)
                         for (x, y) in test_data]
-        return sum(int(x == y) for (x, y) in test_results)
+        print(sum(abs(x - y) for x, y in test_results))
+        return sum(int(abs(x - y) < EPSILON) for (x, y) in test_results)
 
+def column(lst):
+    """Transforms a standard Python list into a numpy column vector."""
+    return np.array([lst]).T
 
+def uncolumn(vec):
+    """Transforms a numpy column vector to standard Python list."""
+    return vec.T.tolist()[0]
 
-
+def reguralize_input(vec):
+    """Input a simple numpy vector, and outputs a column vector."""
+    # input v is a vector
+    return np.array([vec.tolist()]).T
 
 def sigmoid(z):
     """The sigmoid function."""
