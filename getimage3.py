@@ -7,10 +7,9 @@ import io
 from PIL import Image
 
 BAUD = 38400
-PORT = "COM3"      # change this to your com port!
 TIMEOUT = 0.2
 
-SERIALNUM = 0    # start with 0
+SERIALNUM = 0 # start with 0
 
 COMMANDSEND = 0x56
 COMMANDREPLY = 0x76
@@ -42,8 +41,8 @@ def map_bytes(arr):
     return list(map(lambda x: x.to_bytes(1, 'big'), arr))
 
 class Camera:
-    def __init__(self):
-        self.handle = serial.Serial(PORT, baudrate=BAUD, timeout=TIMEOUT)
+    def __init__(self, port='COM3'):
+        self.handle = serial.Serial(port, baudrate=BAUD, timeout=TIMEOUT)
         self.reset()
         if not self.getversion():
             raise Exception("Could not find camera")
@@ -72,7 +71,7 @@ class Camera:
         reply =  self.handle.read(16)
         r = list(reply)
         if self.checkreply(r, CMD_GETVERSION):
-            print("getversion reply: {}".format(r))
+            # print("getversion reply: {}".format(r))
             return True
         return False
 
@@ -94,7 +93,7 @@ class Camera:
         # print("getbufferlength", getbufflencommand)
         reply = self.handle.read(9)
         r = list(reply)
-        print("Getbufferlen reply: {}".format(r))
+        # print("Getbufferlen reply: {}".format(r))
         if (self.checkreply(r, CMD_GETBUFFLEN) and r[4] == 0x4):
             l = r[5]
             l <<= 8
@@ -120,12 +119,10 @@ class Camera:
             reply = self.handle.read(32+5+5)
             r = list(reply)
             if (len(r) != 37+5):
-                print("Reply was wrong len: {}".format(len(r)))
-                continue
-            print("Readbuffer reply: {}".format(r))
+                raise Exception("Incorrect packet size {}".format(len(r)))
+            # print("Readbuffer reply: {}".format(r))
             if (not self.checkreply(r, CMD_READBUFF)):
-                print("ERROR READING PHOTO")
-                exit()
+                raise Exception("Invalid packet from camera")
             photo += r[5:-5]
             addr += 32
         return photo
