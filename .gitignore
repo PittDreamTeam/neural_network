@@ -1,3 +1,4 @@
 __pycache__
-model.py
 .ipynb*
+*.ino
+data
