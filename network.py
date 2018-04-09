@@ -5,7 +5,7 @@ import random
 import cleansing
 import numpy as np
 
-EPSILON = 0.1
+EPSILON = 0.4
 
 class Network(object):
     """Implementation of a simple neural net."""
@@ -35,17 +35,9 @@ class Network(object):
         """Training function:
         ``training_data`` is a list of tuples ``(input, desired_output)``
         where input and desired_output are numpy arrays. test_data follows the same format"""
-        if len(training_data[0][0].shape) == 1:
-            training_data = list(map(
-                lambda x: (reguralize_input(x[0]), reguralize_input(x[1])),
-                training_data
-            ))
-        if test_data and len(test_data[0][0].shape) == 1:
-            test_data = list(map(
-                lambda x: (reguralize_input(x[0]), reguralize_input(x[1])),
-                test_data
-            ))
+        reshape(training_data)
         if test_data:
+            reshape(test_data)
             n_test = len(test_data)
         n = len(training_data)
         for j in range(epochs):
@@ -120,6 +112,16 @@ class Network(object):
                         for (x, y) in test_data]
         print(sum(abs(x - y) for x, y in test_results))
         return sum(int(abs(x - y) < EPSILON) for (x, y) in test_results)
+
+def reshape(data):
+    """Makes sure that all elements in `data` are column vectors."""
+    for i, entry in enumerate(data):
+        ins, out = entry
+        if len(ins.shape) == 1:
+            ins = reguralize_input(ins)
+        if len(out.shape) == 1:
+            out = reguralize_input(out)
+        data[i] = (ins, out)
 
 def column(lst):
     """Transforms a standard Python list into a numpy column vector."""
