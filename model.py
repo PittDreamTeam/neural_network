@@ -19,8 +19,7 @@ def main():
         [0, 0, 0, 1, 0, 0, 0, 0] +
         [0, 0, 0, 0, 0, 0, 0, 0]
     )
-    net = Network([80*60, 80*60, 1])
-    input('done')
+    net = Network([80*60, 50, 1])
     net.SGD(training_data, 100, 8, 1, training_data)
 
 if __name__ == '__main__':
