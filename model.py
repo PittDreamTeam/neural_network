@@ -36,6 +36,7 @@ def draw_grid(image):
     for y in range(0, image.height, step_size):
         line = ((x_start, y), (x_end, y))
         draw.line(line, fill=128)
+    return image
 
 def read_labels(filename):
     """Reads the csv file containing the labels format,
@@ -54,6 +55,8 @@ def read_labels(filename):
     return res
 
 def construct_dataset(numbers):
+    """Builds an entire dataset based on which images you are interested in.
+    `numbers` is an iterable."""
     dataset = []
     for num in numbers:
         pic = Image.open('data/image{i}.jpg'.format(i=num))
@@ -64,13 +67,27 @@ def construct_dataset(numbers):
         )
     return dataset
 
+def draw_x(image, block):
+    """Draws an 'X' on the specified block of the image."""
+    img = image.copy()
+    max_x, max_y = 80, 60
+    y, x = (block % 8), (block // 8)
+    draw = ImageDraw.Draw(img)
+    upward = (
+        (x*max_x, y*max_y), # bottom-left
+        ((x+1)*max_x, (y+1)*max_y) # top-right
+    )
+    draw.line(upward, fill=0xff0000)
+    downward = (
+        (x*max_x, (y+1)*max_y), # top-left
+        ((x+1)*max_x, y*max_y) # bottom-right
+    )
+    draw.line(downward, fill=0xff0000)
+    return img
+
 def main():
     """main"""
-    training_data = construct_dataset(range(8))
-    test_data = construct_dataset(range(8, 10))
-    net = Network([20*15, 20*15, 20, 15, 1])
-    net.SGD(training_data, 100, 8, 1, test_data)
-    pickle.dump(net, open(sys.argv[1], 'wb'))
+    pass
 
 if __name__ == '__main__':
     main()
