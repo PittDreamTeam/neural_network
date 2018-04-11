@@ -1,8 +1,8 @@
 """How to train your neural network."""
 
-import numpy
 import pickle
 import sys
+import numpy
 import cleansing
 from PIL import Image, ImageDraw
 from network import Network
@@ -53,24 +53,21 @@ def read_labels(filename):
         res += line
     return res
 
+def construct_dataset(numbers):
+    dataset = []
+    for num in numbers:
+        pic = Image.open('data/image{i}.jpg'.format(i=num))
+        parts = lowres(cleansing.grid(pic, (80, 60)))
+        dataset += cleansing.build_dataset(
+            cleansing.compress(parts),
+            read_labels('data/labels{i}.csv'.format(i=num))
+        )
+    return dataset
+
 def main():
     """main"""
-    training_data = []
-    for i in range(8):
-        pic = Image.open('data/image{i}.jpg'.format(i=i))
-        parts = lowres(cleansing.grid(pic, (80, 60)))
-        training_data += cleansing.build_dataset(
-            cleansing.compress(parts),
-            read_labels('data/labels{i}.csv'.format(i=i))
-        )
-    test_data = []
-    for i in range(8, 10):
-        pic = Image.open('data/image{i}.jpg'.format(i=i))
-        parts = lowres(cleansing.grid(pic, (80, 60)))
-        test_data += cleansing.build_dataset(
-            cleansing.compress(parts),
-            read_labels('data/labels{i}.csv'.format(i=i))
-        )
+    training_data = construct_dataset(range(8))
+    test_data = construct_dataset(range(8, 10))
     net = Network([20*15, 20*15, 20, 15, 1])
     net.SGD(training_data, 100, 8, 1, test_data)
     pickle.dump(net, open(sys.argv[1], 'wb'))
