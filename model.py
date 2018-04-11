@@ -69,10 +69,9 @@ def construct_dataset(numbers):
 
 def draw_x(image, block):
     """Draws an 'X' on the specified block of the image."""
-    img = image.copy()
     max_x, max_y = 80, 60
     y, x = (block % 8), (block // 8)
-    draw = ImageDraw.Draw(img)
+    draw = ImageDraw.Draw(image)
     upward = (
         (x*max_x, y*max_y), # bottom-left
         ((x+1)*max_x, (y+1)*max_y) # top-right
@@ -83,7 +82,27 @@ def draw_x(image, block):
         ((x+1)*max_x, y*max_y) # bottom-right
     )
     draw.line(downward, fill=0xff0000)
-    return img
+    return image
+
+def find_cars(net, image):
+    """Apply the neural net to all pieces of `image`;
+    return the indices of the pieces which are considered cars."""
+    pics = cleansing.compress(
+        lowres(cleansing.grid(image, (80, 60))))
+    winners = []
+    for i, pic in enumerate(pics):
+        error = abs(net.feedforward(pic) - 1)
+        if error < 0.4:
+            winners.append(i)
+    return winners
+
+def mark_cars(net, image):
+    """Automatically breaks up the image,
+    finds all the cars in it, and marks where they are."""
+    draw_grid(image)
+    for i in find_cars(net, image):
+        draw_x(image, i)
+    return image
 
 def main():
     """main"""
