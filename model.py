@@ -1,11 +1,11 @@
 """How to train your neural network."""
 
 import pickle
-import sys
 import numpy
 import cleansing
 from PIL import Image, ImageDraw
 from network import Network
+from getimage3 import Camera
 
 def lowres(pics):
     """Training images were captured at 640x480 res,
@@ -104,9 +104,41 @@ def mark_cars(net, image):
         draw_x(image, i)
     return image
 
+def organize_grid(grid):
+    """Turns a flat list of image segments into a list of lists of segments.
+    Assumes that the grid is square,
+    and that the pieces come in coluumn-major order.
+    This output matrix is now in ROW-MAJOR order."""
+    import math
+    height = int(math.sqrt(len(grid)))
+    res = [[] for _ in range(height)]
+    for i, piece in enumerate(grid):
+        res[i % height].append(piece)
+    return res
+
+def is_car(net, example):
+    """Simply returns a bool indicating whether this
+    `example` is a match on this `net`."""
+    return abs(1 - net.feedforward(example)) < 0.4
+
+def find_runs(lane, func, win_len=2):
+    """Indentifies the positions in `lane` which
+    satisfy `func` for at least `win_len` elements."""
+    pos = []
+    current_len = 0
+    for i, elem in enumerate(lane):
+        current_len = current_len + 1 if func(elem) else 0
+        if current_len == win_len:
+            pos.append(i - win_len + 1)
+    return pos
+
 def main():
     """main"""
-    pass
+    cam = Camera()
+    img = cam.take_photo()
+    # net = pickle.load(open('net.pickle', 'rb'))
+    # mark_cars(net, img).show()
+    img.resize((160, 120)).save('forparth.jpg')
 
 if __name__ == '__main__':
     main()
