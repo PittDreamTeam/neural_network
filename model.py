@@ -177,7 +177,7 @@ def image2datagrid(image):
 
 class Model:
     """A handy-dandy way to deal with our neural network and image processing."""
-    def __init__(self, net, parking_lanes=(3, 6)):
+    def __init__(self, net, parking_lanes=(2, 5)):
         """Contruct a model.
         Param `net` is a `network.Network`, and must be opened by some fasion.
         `parking_lanes` is a pair of ints which specify
@@ -192,14 +192,26 @@ class Model:
             image2datagrid(image)[lane],
             lambda x: not is_car(self.net, x)
         )
+    def highlight_lanes(self, image):
+        """Returns a copy of the given `image` with the parking lanes highlighted."""
+        image = image.copy()
+        draw = ImageDraw.Draw(image)
+        width, height = image.size
+        vertical_step = height//8
+        above_top = self.top_lane*vertical_step
+        below_top = (self.top_lane+1)*vertical_step
+        above_low = self.low_lane*vertical_step
+        below_low = (self.low_lane+1)*vertical_step
+        draw.rectangle(((0, above_top), (width-1, below_top)), outline=255)
+        draw.rectangle(((0, above_low), (width-1, below_low)), outline=255)
+        return image
 
 def main():
     """main"""
-    cam = Camera()
-    img = cam.take_photo()
-    # net = pickle.load(open('net.pickle', 'rb'))
-    # mark_cars(net, img).show()
-    img.resize((160, 120)).save('forparth.jpg')
+    net = pickle.load(open('net.pickle', 'rb'))
+    mod = Model(net)
+    img = Image.open('data/image11.jpg')
+    mod.highlight_lanes(img).show()
 
 if __name__ == '__main__':
-    unittest.main()
+    main()
