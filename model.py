@@ -175,6 +175,25 @@ def image2datagrid(image):
         lowres(cleansing.grid(image, (80, 60)))
     ))
 
+def highlight_cell(image, row, col, color):
+    """Highlights the cell given by `row` and `col` in `image`.
+    Param `color` is an RGBA integer, 0xAABBGGRR (I think).
+    Right now, I'm drawing an 'X', but I think that can change."""
+    draw = ImageDraw.Draw(image)
+    width, height = image.size
+    wstep, hstep = width//8, height//8
+    downward = (
+        (col*wstep, row*hstep),
+        ((col+1)*wstep, (row+1)*hstep)
+    )
+    upward = (
+        (col*wstep, (row+1)*hstep),
+        ((col+1)*wstep, row*hstep)
+    )
+    draw.line(downward, fill=color)
+    draw.line(upward, fill=color)
+    return image
+
 class Model:
     """A handy-dandy way to deal with our neural network and image processing."""
     def __init__(self, net, parking_lanes=(2, 5)):
@@ -211,7 +230,10 @@ def main():
     net = pickle.load(open('net.pickle', 'rb'))
     mod = Model(net)
     img = Image.open('data/image11.jpg')
-    mod.highlight_lanes(img).show()
+    blue = 0xFF0000
+    highlight_cell(img, 2, 4, blue)
+    highlight_cell(img, 2, 6, blue)
+    img.show()
 
 if __name__ == '__main__':
     main()
