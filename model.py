@@ -104,9 +104,10 @@ def find_cars(net, image):
 def mark_cars(net, image):
     """Automatically breaks up the image,
     finds all the cars in it, and marks where they are."""
-    draw_grid(image)
-    for i in find_cars(net, image):
-        draw_x(image, i)
+    winners = find_cars(net, image)
+    draw_grid(image) # have to draw the grid after
+    for i in winners: # recognition, else every cell
+        draw_x(image, i) # will be considered "car".
     return image
 
 def organize_grid(grid):
