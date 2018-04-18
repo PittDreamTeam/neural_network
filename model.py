@@ -7,6 +7,7 @@ import cleansing
 from PIL import Image, ImageDraw
 from network import Network
 from getimage3 import Camera
+import tint
 
 def lowres(pics):
     """Training images were captured at 640x480 res,
@@ -221,8 +222,10 @@ class Model:
         below_top = (self.top_lane+1)*vertical_step
         above_low = self.low_lane*vertical_step
         below_low = (self.low_lane+1)*vertical_step
-        draw.rectangle(((0, above_top), (width-1, below_top)), outline=255)
-        draw.rectangle(((0, above_low), (width-1, below_low)), outline=255)
+        top_box = ((0, above_top), (width-1, below_top))
+        low_box = ((0, above_low), (width-1, below_low))
+        image = tint.tint(image, top_box[0], top_box[1], tint.Color.RED)
+        image = tint.tint(image, low_box[0], low_box[1], tint.Color.RED)
         return image
 
 def main():
@@ -231,9 +234,7 @@ def main():
     mod = Model(net)
     img = Image.open('data/image11.jpg')
     blue = 0xFF0000
-    highlight_cell(img, 2, 4, blue)
-    highlight_cell(img, 2, 6, blue)
-    img.show()
+    mod.highlight_lanes(img).show()
 
 if __name__ == '__main__':
     main()
