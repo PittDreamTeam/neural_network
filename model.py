@@ -213,9 +213,8 @@ class Model:
             lambda x: not is_car(self.net, x)
         )
     def highlight_lanes(self, image):
-        """Returns a copy of the given `image` with the parking lanes highlighted."""
-        image = image.copy()
-        draw = ImageDraw.Draw(image)
+        """Returns a copy of the given `image` with the parking lanes highlighted.
+        Does not modify the image."""
         width, height = image.size
         vertical_step = height//8
         above_top = self.top_lane*vertical_step
@@ -227,14 +226,32 @@ class Model:
         image = tint.tint(image, top_box[0], top_box[1], tint.Color.RED)
         image = tint.tint(image, low_box[0], low_box[1], tint.Color.RED)
         return image
+    def highlight_spaces(self, image):
+        """Highlights the available parking spaces for users.
+        Does not modify the original image."""
+        wstep, hstep = image.size[0]//8, image.size[1]//8
+        # Checking top lane
+        winners = self.find_spaces(image, top_lane=True)
+        row = self.top_lane
+        for col in winners:
+            top_left = (col*wstep, row*hstep)
+            bottom_right = ((col+2)*wstep, (row+1)*hstep)
+            image = tint.tint(image, top_left, bottom_right, tint.Color.GREEN)
+        # And now the bottom lane
+        winners = self.find_spaces(image, top_lane=False)
+        row = self.low_lane
+        for col in winners:
+            top_left = (col*wstep, row*hstep)
+            bottom_right = ((col+2)*wstep, (row+1)*hstep)
+            image = tint.tint(image, top_left, bottom_right, tint.Color.GREEN)
+        return image
 
 def main():
     """main"""
     net = pickle.load(open('net.pickle', 'rb'))
     mod = Model(net)
     img = Image.open('data/image11.jpg')
-    blue = 0xFF0000
-    mod.highlight_lanes(img).show()
+    mod.highlight_spaces(img).show()
 
 if __name__ == '__main__':
     main()
